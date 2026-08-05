@@ -1,0 +1,369 @@
+// Prisma Schema for Success MP Online Backend
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum RoleName {
+  SUPER_ADMIN
+  ADMIN
+  STAFF
+  OPERATOR
+  USER
+}
+
+enum ApplicationStatus {
+  DRAFT
+  DOCUMENTS_PENDING
+  PAYMENT_PENDING
+  SUBMITTED
+  UNDER_REVIEW
+  DOCUMENT_VERIFICATION
+  APPROVED
+  REJECTED
+  COMPLETED
+  CANCELLED
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCESS
+  FAILED
+  REFUNDED
+}
+
+enum NotificationChannel {
+  EMAIL
+  WHATSAPP
+  SMS
+}
+
+enum NotificationStatus {
+  PENDING
+  SENT
+  FAILED
+}
+
+model Role {
+  id              String           @id @default(uuid())
+  name            RoleName         @unique
+  description     String?
+  createdAt       DateTime         @default(now()) @map("created_at")
+  updatedAt       DateTime         @updatedAt @map("updated_at")
+
+  users           User[]
+  staffUsers      StaffUser[]
+  rolePermissions RolePermission[]
+
+  @@map("roles")
+}
+
+model Permission {
+  id              String           @id @default(uuid())
+  slug            String           @unique
+  description     String?
+  createdAt       DateTime         @default(now()) @map("created_at")
+
+  rolePermissions RolePermission[]
+
+  @@map("permissions")
+}
+
+model RolePermission {
+  roleId       String     @map("role_id")
+  permissionId String     @map("permission_id")
+
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+  @@map("role_permissions")
+}
+
+model User {
+  id            String         @id @default(uuid())
+  email         String         @unique
+  phone         String?        @unique
+  passwordHash  String         @map("password_hash")
+  roleId        String         @map("role_id")
+  isActive      Boolean        @default(true) @map("is_active")
+  createdAt     DateTime       @default(now()) @map("created_at")
+  updatedAt     DateTime       @updatedAt @map("updated_at")
+
+  role                Role                 @relation(fields: [roleId], references: [id])
+  profile             UserProfile?
+  staffProfile        StaffUser?
+  applications        Application[]
+  refreshTokens       RefreshToken[]
+  auditLogs           AuditLog[]
+  statusChanges       ApplicationStatusHistory[] @relation("StatusChangedBy")
+  passwordResetTokens PasswordResetToken[]
+
+  @@map("users")
+}
+
+model UserProfile {
+  id        String   @id @default(uuid())
+  userId    String   @unique @map("user_id")
+  fullName  String   @map("full_name")
+  address   String?
+  city      String?
+  district  String?
+  state     String?  @default("Madhya Pradesh")
+  pincode   String?
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_profiles")
+}
+
+model StaffUser {
+  id         String   @id @default(uuid())
+  userId     String   @unique @map("user_id")
+  department String?
+  designation String?
+  employeeId String?  @unique @map("employee_id")
+  roleId     String   @map("role_id")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role       Role     @relation(fields: [roleId], references: [id])
+
+  @@map("staff_users")
+}
+
+model ServiceCategory {
+  id          String    @id @default(uuid())
+  name        String    @unique
+  description String?
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  services    Service[]
+
+  @@map("service_categories")
+}
+
+model Service {
+  id             String          @id @default(uuid())
+  code           String          @unique
+  name           String
+  tagline        String?
+  description    String
+  fee            Int             // Fee in INR
+  active         Boolean         @default(true)
+  categoryId     String?         @map("category_id")
+  fields         Json            // Field definitions json
+  documents      Json            // Required document definitions json
+  createdAt      DateTime        @default(now()) @map("created_at")
+  updatedAt      DateTime        @updatedAt @map("updated_at")
+
+  category       ServiceCategory? @relation(fields: [categoryId], references: [id])
+  applications   Application[]
+
+  @@map("services")
+}
+
+model Application {
+  id             String                   @id @default(uuid())
+  applicationNo String                   @unique @map("application_no")
+  userId         String                   @map("user_id")
+  serviceId      String                   @map("service_id")
+  formData       Json                     @map("form_data")
+  status         ApplicationStatus        @default(DRAFT)
+  adminNotes     String?                  @map("admin_notes")
+  amount         Int
+  paymentStatus  PaymentStatus            @default(PENDING) @map("payment_status")
+  paymentId      String?                  @map("payment_id")
+  createdAt      DateTime                 @default(now()) @map("created_at")
+  updatedAt      DateTime                 @updatedAt @map("updated_at")
+
+  user           User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  service        Service                  @relation(fields: [serviceId], references: [id])
+  documents      ApplicationDocument[]
+  payments       Payment[]
+  receipts       Receipt[]
+  statusHistory  ApplicationStatusHistory[]
+
+  @@index([userId])
+  @@index([status])
+  @@index([createdAt(sort: Desc)])
+  @@map("applications")
+}
+
+model ApplicationStatusHistory {
+  id            String            @id @default(uuid())
+  applicationId String            @map("application_id")
+  oldStatus     ApplicationStatus? @map("old_status")
+  newStatus     ApplicationStatus @map("new_status")
+  changedById   String?           @map("changed_by_id")
+  remarks       String?
+  changedAt     DateTime          @default(now()) @map("changed_at")
+
+  application   Application       @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  changedBy     User?             @relation("StatusChangedBy", fields: [changedById], references: [id])
+
+  @@map("application_status_history")
+}
+
+model DocumentType {
+  id          String   @id @default(uuid())
+  code        String   @unique
+  name        String
+  description String?
+  mimeType    String?  @map("mime_type")
+  maxSizeMb   Int      @default(10) @map("max_size_mb")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@map("document_types")
+}
+
+model ApplicationDocument {
+  id            String      @id @default(uuid())
+  applicationId String      @map("application_id")
+  documentType  String      @map("document_type")
+  fileName      String      @map("file_name")
+  fileKey       String      @map("file_key")
+  fileSize      Int         @map("file_size")
+  mimeType      String      @map("mime_type")
+  uploadedAt    DateTime    @default(now()) @map("uploaded_at")
+
+  application   Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+
+  @@map("application_documents")
+}
+
+model Payment {
+  id            String        @id @default(uuid())
+  applicationId String        @map("application_id")
+  orderId       String        @unique @map("order_id")
+  paymentId     String?       @unique @map("payment_id")
+  signature     String?
+  amount        Int           // Amount in paise
+  currency      String        @default("INR")
+  status        PaymentStatus @default(PENDING)
+  createdAt     DateTime      @default(now()) @map("created_at")
+  updatedAt     DateTime      @updatedAt @map("updated_at")
+
+  application   Application   @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  events        PaymentEvent[]
+
+  @@map("payments")
+}
+
+model PaymentEvent {
+  id          String   @id @default(uuid())
+  paymentId   String   @map("payment_id")
+  eventType   String   @map("event_type")
+  payload     Json
+  processedAt DateTime @default(now()) @map("processed_at")
+
+  payment     Payment  @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+
+  @@map("payment_events")
+}
+
+model Receipt {
+  id            String      @id @default(uuid())
+  applicationId String      @map("application_id")
+  receiptNumber String      @unique @map("receipt_number")
+  pdfPath       String?     @map("pdf_path")
+  createdAt     DateTime    @default(now()) @map("created_at")
+
+  application   Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+
+  @@map("receipts")
+}
+
+model Notification {
+  id          String              @id @default(uuid())
+  userId      String              @map("user_id")
+  title       String
+  message     String
+  isRead      Boolean             @default(false) @map("is_read")
+  createdAt   DateTime            @default(now()) @map("created_at")
+
+  logs        NotificationLog[]
+
+  @@map("notifications")
+}
+
+model NotificationLog {
+  id             String              @id @default(uuid())
+  notificationId String?             @map("notification_id")
+  channel        NotificationChannel
+  recipient      String
+  subject        String?
+  content        String
+  status         NotificationStatus  @default(PENDING)
+  retryCount     Int                 @default(0) @map("retry_count")
+  error          String?
+  sentAt         DateTime?           @map("sent_at")
+  createdAt      DateTime            @default(now()) @map("created_at")
+
+  notification   Notification?       @relation(fields: [notificationId], references: [id])
+
+  @@map("notification_logs")
+}
+
+model OtpVerification {
+  id        String   @id @default(uuid())
+  phone     String
+  code      String
+  expiresAt DateTime @map("expires_at")
+  verified  Boolean  @default(false)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([phone, code])
+  @@map("otp_verifications")
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  tokenHash String   @unique @map("token_hash")
+  revoked   Boolean  @default(false)
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("refresh_tokens")
+}
+
+model PasswordResetToken {
+  id        String    @id @default(uuid())
+  userId    String    @map("user_id")
+  tokenHash String    @unique @map("token_hash")
+  expiresAt DateTime  @map("expires_at")
+  usedAt    DateTime? @map("used_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("password_reset_tokens")
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  userId    String?  @map("user_id")
+  action    String
+  entity    String
+  entityId  String?  @map("entity_id")
+  details   Json?
+  ipAddress String?  @map("ip_address")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user      User?    @relation(fields: [userId], references: [id])
+
+  @@map("audit_logs")
+}
