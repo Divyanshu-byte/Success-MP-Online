@@ -21,10 +21,21 @@ async function bootstrap() {
     "RAZORPAY_KEY_ID",
   ];
 
+  // Ensure DATABASE_URL is set from Railway PostgreSQL fallback environment variables if needed
+  if (!process.env.DATABASE_URL || process.env.DATABASE_URL.includes("placeholder")) {
+    const railwayDbUrl =
+      process.env.DATABASE_PRIVATE_URL ||
+      process.env.DATABASE_PUBLIC_URL ||
+      process.env.POSTGRES_URL;
+    if (railwayDbUrl) {
+      process.env.DATABASE_URL = railwayDbUrl;
+    }
+  }
+
   logger.log("--- Environment Configuration Check ---");
   for (const key of requiredEnvKeys) {
     const val = process.env[key];
-    const isPresent = !!(val && val.trim() !== "" && !val.includes("YOUR_"));
+    const isPresent = !!(val && val.trim() !== "" && !val.includes("YOUR_") && !val.includes("placeholder"));
     logger.log(`ENV [${key}]: ${isPresent ? "✓ PRESENT" : "✗ MISSING"}`);
     if (!isPresent) {
       logger.error(`FATAL: Required environment variable ${key} is missing or invalid!`);
