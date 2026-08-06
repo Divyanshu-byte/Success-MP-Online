@@ -11,6 +11,7 @@ RUN npm ci
 COPY . .
 
 # Generate Prisma client (must happen before build)
+ENV DATABASE_URL="postgresql://placeholder:placeholder@localhost:5432/placeholder_db"
 RUN npx prisma generate
 
 # Build NestJS
@@ -32,6 +33,9 @@ COPY prisma ./prisma
 
 # Copy built application from builder stage
 COPY --from=builder /app/build ./build
+
+# Dummy fallback DATABASE_URL for build-time Prisma Client generation
+ENV DATABASE_URL="postgresql://placeholder:placeholder@localhost:5432/placeholder_db"
 
 # Generate Prisma client in production image
 RUN npx prisma generate

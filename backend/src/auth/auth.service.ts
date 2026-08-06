@@ -14,6 +14,7 @@ import { RegisterDto } from "./dto/register.dto";
 import { LoginDto } from "./dto/login.dto";
 import { RoleName } from "@prisma/client";
 import { MailService } from "../mail/mail.service";
+import { WelcomeService } from "../features/success-management/welcome/welcome.service";
 
 @Injectable()
 export class AuthService {
@@ -24,6 +25,7 @@ export class AuthService {
     private jwtService: JwtService,
     private configService: ConfigService,
     private mailService: MailService,
+    private welcomeService: WelcomeService,
   ) {}
 
   // ----------------------------------------------------------------
@@ -69,6 +71,14 @@ export class AuthService {
       user.email,
       user.role.name,
     );
+
+    // Fire-and-forget: send one-time welcome notification
+    setImmediate(() => {
+      this.welcomeService
+        .sendWelcomeNotificationIfNeeded(user.id)
+        .catch((err) => this.logger.warn(`Welcome notification failed: ${err.message}`));
+    });
+
     return {
       user: {
         id: user.id,

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { ShieldCheck, LifeBuoy, LogOut, User, Check, X, ShieldAlert } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
+import { BrandLogo, NotificationBell } from "@/features/success-management";
 
 export default function Navbar() {
   const { user, profile, isAdmin, signOut, updateProfile } = useAuth();
@@ -45,28 +46,13 @@ export default function Navbar() {
     <>
       <header className="sticky top-0 z-30 bg-white/80 backdrop-blur-lg border-b border-slate-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          <Link to="/" className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-blue-600 to-slate-900 flex items-center justify-center text-white">
-              <ShieldCheck className="w-5 h-5" />
-            </div>
-            <div className="leading-tight">
-              <div className="flex items-center gap-2">
-                <p className="font-bold text-slate-900 text-sm sm:text-base">
-                  Success MP Online
-                </p>
-                {isAdmin && (
-                  <span className="bg-purple-100 text-purple-700 text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 border border-purple-200">
-                    <ShieldAlert className="w-3 h-3" /> ADMIN
-                  </span>
-                )}
-              </div>
-              <p className="text-[11px] text-slate-500 hidden sm:block">
-                Government Services Portal
-              </p>
-            </div>
+          <Link to="/">
+            <BrandLogo isAdmin={isAdmin} />
           </Link>
 
           <div className="flex items-center gap-2 sm:gap-3">
+            {user && <NotificationBell />}
+
             <a
               href="https://wa.me/919000000000"
               target="_blank"

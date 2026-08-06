@@ -13,8 +13,19 @@
  *   • 400, 403, 404, and 500 errors NEVER trigger a refresh attempt.
  */
 
-const API_BASE_URL =
+export const API_BASE_URL =
   import.meta.env.VITE_BACKEND_URL || "http://localhost:3000/api/v1";
+
+export function getAuthHeaders(): Record<string, string> {
+  const token = getStoredToken();
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+  };
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
+  }
+  return headers;
+}
 
 // ── Auth endpoints that must NEVER trigger an automatic refresh ──────────────
 const AUTH_REFRESH_EXCLUSIONS = [

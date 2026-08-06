@@ -2,6 +2,7 @@
 
 generator client {
   provider = "prisma-client-js"
+  binaryTargets = ["native", "debian-openssl-3.0.x", "linux-musl-openssl-3.0.x"]
 }
 
 datasource db {
@@ -47,6 +48,17 @@ enum NotificationStatus {
   PENDING
   SENT
   FAILED
+}
+
+enum NotificationType {
+  WELCOME
+  APPLICATION_SUBMITTED
+  DOCUMENT_VERIFICATION
+  APPLICATION_PROCESSING
+  DOCUMENT_DELIVERED
+  NEW_FEATURE
+  NEW_SERVICE
+  GENERAL_ANNOUNCEMENT
 }
 
 model Role {
@@ -103,6 +115,8 @@ model User {
   auditLogs           AuditLog[]
   statusChanges       ApplicationStatusHistory[] @relation("StatusChangedBy")
   passwordResetTokens PasswordResetToken[]
+  notifications       Notification[]
+  welcomeNotificationSentAt DateTime? @map("welcome_notification_sent_at")
 
   @@map("users")
 }
@@ -182,6 +196,8 @@ model Application {
   amount         Int
   paymentStatus  PaymentStatus            @default(PENDING) @map("payment_status")
   paymentId      String?                  @map("payment_id")
+  completedAt    DateTime?                @map("completed_at")
+  finalDocumentId String?                 @map("final_document_id")
   createdAt      DateTime                 @default(now()) @map("created_at")
   updatedAt      DateTime                 @updatedAt @map("updated_at")
 
@@ -191,6 +207,7 @@ model Application {
   payments       Payment[]
   receipts       Receipt[]
   statusHistory  ApplicationStatusHistory[]
+  notifications  Notification[]
 
   @@index([userId])
   @@index([status])
@@ -283,21 +300,28 @@ model Receipt {
 }
 
 model Notification {
-  id          String              @id @default(uuid())
-  userId      String              @map("user_id")
-  title       String
-  message     String
-  isRead      Boolean             @default(false) @map("is_read")
-  createdAt   DateTime            @default(now()) @map("created_at")
+  id            String            @id @default(uuid())
+  userId        String            @map("user_id")
+  applicationId String?           @map("application_id")
+  title         String
+  message       String
+  actionUrl     String?           @map("action_url")
+  type          NotificationType  @default(GENERAL_ANNOUNCEMENT)
+  isRead        Boolean           @default(false) @map("is_read")
+  createdAt     DateTime          @default(now()) @map("created_at")
 
-  logs        NotificationLog[]
+  user          User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  application   Application?      @relation(fields: [applicationId], references: [id], onDelete: SetNull)
+  logs          NotificationLog[]
 
+  @@index([userId])
   @@map("notifications")
 }
 
 model NotificationLog {
   id             String              @id @default(uuid())
   notificationId String?             @map("notification_id")
+  applicationId  String?             @map("application_id")
   channel        NotificationChannel
   recipient      String
   subject        String?
@@ -311,6 +335,19 @@ model NotificationLog {
   notification   Notification?       @relation(fields: [notificationId], references: [id])
 
   @@map("notification_logs")
+}
+
+model Announcement {
+  id          String   @id @default(uuid())
+  title       String
+  message     String
+  actionUrl   String?  @map("action_url")
+  targetType  String   @default("ALL") @map("target_type")
+  serviceId   String?  @map("service_id")
+  createdBy   String   @map("created_by")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@map("announcements")
 }
 
 model OtpVerification {

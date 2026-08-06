@@ -7,10 +7,12 @@ import { AuthController } from "./auth.controller";
 import { JwtStrategy } from "./jwt.strategy";
 import { GoogleStrategy } from "./strategies/google.strategy";
 import { MailModule } from "../mail/mail.module";
+import { SuccessManagementModule } from "../features/success-management/success-management.module";
 
 @Module({
   imports: [
     MailModule,
+    SuccessManagementModule,
     PassportModule.register({ defaultStrategy: "jwt", session: false }),
     JwtModule.registerAsync({
       imports: [ConfigModule],

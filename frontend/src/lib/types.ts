@@ -50,10 +50,11 @@ export interface Application {
   service_type: ServiceType;
   form_data: Record<string, any>;
   documents?: Record<string, any>;
-  status: "pending" | "approved" | "rejected";
+  status: "pending" | "approved" | "rejected" | "completed";
   admin_notes?: string;
   created_at: string;
   updated_at?: string;
+  completed_at?: string | null;
   
   // Helpers for convenience
   applicant_name?: string;
@@ -66,6 +67,7 @@ export interface Application {
   email_sent?: boolean;
   email_message?: string;
   profiles?: Profile;
+  service?: any;
 }
 
 export interface ApplicationStatusHistory {
@@ -79,7 +81,9 @@ export interface ApplicationStatusHistory {
 
 export function normalizeApplication(app: any): Application {
   const rawStatus = (app.status || "pending").toString().toLowerCase();
-  const status: "pending" | "approved" | "rejected" = rawStatus.includes("approved")
+  const status: "pending" | "approved" | "rejected" | "completed" = rawStatus.includes("completed")
+    ? "completed"
+    : rawStatus.includes("approved")
     ? "approved"
     : rawStatus.includes("reject")
     ? "rejected"
@@ -99,12 +103,14 @@ export function normalizeApplication(app: any): Application {
     application_no: appNo,
     user_id: app.userId || app.user_id || "",
     service_type: serviceType,
+    service: app.service,
     form_data: app.formData || app.form_data || {},
     documents: app.documents || {},
     status,
     admin_notes: app.adminNotes || app.admin_notes || "",
     created_at: app.createdAt || app.created_at || new Date().toISOString(),
     updated_at: app.updatedAt || app.updated_at,
+    completed_at: app.completedAt || app.completed_at || null,
     applicant_name: applicantName,
     applicant_email: app.user?.email || app.formData?.applicant_email || "",
     applicant_phone: app.user?.phone || app.user?.profile?.phone || "",
